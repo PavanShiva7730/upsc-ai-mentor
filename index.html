@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPSC AI Mentor - Testbook</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+    }
+
+    .mentor-widget {
+      width: 100%;
+      max-width: 420px;
+      height: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #e1e5ee;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .mentor-header {
+      background: #0f766e;
+      color: #ffffff;
+      padding: 16px;
+    }
+
+    .mentor-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .mentor-header p {
+      margin: 5px 0 0;
+      font-size: 13px;
+      opacity: 0.95;
+    }
+
+    .mentor-chat {
+      flex: 1;
+      padding: 14px;
+      overflow-y: auto;
+      background: #f8fafc;
+    }
+
+    .message {
+      max-width: 86%;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .bot {
+      background: #ffffff;
+      color: #111827;
+      border: 1px solid #e5e7eb;
+      align-self: flex-start;
+    }
+
+    .user {
+      background: #0f766e;
+      color: #ffffff;
+      margin-left: auto;
+    }
+
+    .mentor-input {
+      display: flex;
+      gap: 8px;
+      padding: 12px;
+      background: #ffffff;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .mentor-input input {
+      flex: 1;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .mentor-input button {
+      border: none;
+      background: #0f766e;
+      color: white;
+      padding: 0 16px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .mentor-input button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .quick-questions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 12px 0;
+      background: #f8fafc;
+    }
+
+    .quick-questions button {
+      border: 1px solid #cbd5e1;
+      background: #ffffff;
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 480px) {
+      .mentor-widget {
+        height: 100vh;
+        max-width: 100%;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="mentor-widget">
+    <div class="mentor-header">
+      <h2>UPSC AI Mentor</h2>
+      <p>Ask short UPSC preparation doubts. Get brief, exam-focused answers.</p>
+    </div>
+
+    <div class="quick-questions">
+      <button onclick="askQuick('How should I start UPSC preparation?')">Start UPSC</button>
+      <button onclick="askQuick('Explain polity for UPSC in simple words')">Polity</button>
+      <button onclick="askQuick('How to revise current affairs for UPSC?')">Current Affairs</button>
+    </div>
+
+    <div id="chatBox" class="mentor-chat">
+      <div class="message bot">Hello! I am your UPSC AI Mentor. Ask me any UPSC doubt, and I will answer in 4–5 short lines.</div>
+    </div>
+
+    <div class="mentor-input">
+      <input id="userInput" type="text" placeholder="Ask your UPSC doubt..." maxlength="300" />
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <script>
+    /*
+      IMPORTANT:
+      Do NOT paste your OpenAI API key here.
+      This URL should point to your secure proxy, such as a Cloudflare Worker.
+    */
+    const API_PROXY_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
+
+    const chatBox = document.getElementById("chatBox");
+    const input = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+
+    function addMessage(text, type) {
+      const msg = document.createElement("div");
+      msg.className = "message " + type;
+      msg.textContent = text;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function askQuick(question) {
+      input.value = question;
+      sendMessage();
+    }
+
+    function cleanUserInput(text) {
+      return text.replace(/[<>]/g, "").trim();
+    }
+
+    async function sendMessage() {
+      const question = cleanUserInput(input.value);
+
+      if (!question) return;
+
+      addMessage(question, "user");
+      input.value = "";
+      sendBtn.disabled = true;
+      addMessage("Thinking...", "bot");
+
+      try {
+        const response = await fetch(API_PROXY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question })
+        });
+
+        const data = await response.json();
+        chatBox.lastChild.remove();
+
+        if (!response.ok) {
+          addMessage(data.error || "Sorry, I could not answer right now.", "bot");
+        } else {
+          addMessage(data.answer, "bot");
+        }
+      } catch (error) {
+        chatBox.lastChild.remove();
+        addMessage("Network error. Please try again after some time.", "bot");
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    input.addEventListener("keydown", function(event) {
+      if (event.key === "Enter") sendMessage();
+    });
+  </script>
+</body>
+</html>
